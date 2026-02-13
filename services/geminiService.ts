@@ -1,11 +1,6 @@
 
-import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
-
-export interface ImageRef {
-  data: string; // base64
-  mimeType: string;
-  description: string;
-}
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { ProductReference, HumanModel } from "../types";
 
 export class GeminiService {
   private static getAI() {
@@ -24,31 +19,82 @@ export class GeminiService {
     return response.text || "";
   }
 
+  /**
+   * ADVANCED PROMPT ASSEMBLY LOGIC
+   * Concatenates Brand Context + Dimensions + References + Models + View
+   */
+  static assembleFurniturePrompt(data: {
+    brandStyle: string;
+    dimensions?: { w: number; h: number; d: number };
+    productRefs: ProductReference[];
+    productDesc?: string;
+    envRef?: { url: string; description: string };
+    lighting?: { type: string; custom?: string };
+    models: HumanModel[];
+    view?: string;
+  }): string {
+    let p = `[ESTETICA BRAND]: ${data.brandStyle}. `;
+    
+    if (data.dimensions) {
+      p += `[DIMENSIONI]: Larghezza ${data.dimensions.w}cm, Altezza ${data.dimensions.h}cm, Profondità ${data.dimensions.d}cm. Mantieni proporzioni fotorealistiche. `;
+    }
+
+    if (data.productDesc) {
+      p += `[DESCRIZIONE PRODOTTO]: ${data.productDesc}. `;
+    }
+
+    if (data.productRefs.length > 0) {
+      p += `[REFERENCE VISIVE PRODOTTO]: Utilizza le immagini fornite come riferimento primario per design, materiali e finiture. `;
+      data.productRefs.forEach((ref, i) => {
+        p += `Immagine ${i+1}: ${ref.description}. `;
+      });
+    }
+
+    if (data.envRef) {
+      p += `[AMBIENTE]: Usa l'immagine di riferimento ambientale fornita. ${data.envRef.description || 'Ambiente integrato perfettamente'}. `;
+    }
+
+    if (data.lighting) {
+      const lightDesc = data.lighting.type === 'Custom' ? data.lighting.custom : data.lighting.type;
+      p += `[ILLUMINAZIONE]: Setup ${lightDesc}. Resa High-end catalog. `;
+    }
+
+    if (data.view) {
+      p += `[INQUADRATURA]: Vista ${data.view}. `;
+    }
+
+    if (data.models.length > 0) {
+      p += `[MODELLI UMANI]: `;
+      data.models.forEach((m) => {
+        p += `Un modello ${m.gender === 'female' ? 'Donna' : 'Uomo'} impegnato in: ${m.interaction}. `;
+      });
+    }
+
+    p += "Rendering professionale per catalogo arredamento di lusso, 8k, Octane Render style, massima fedeltà materica.";
+    return p;
+  }
+
   static async generateImage(
     prompt: string, 
     config: { aspectRatio: string; imageSize: string },
-    productRefs: ImageRef[] = [],
-    envRef?: { data: string; mimeType: string }
+    images?: { url: string; mimeType: string }[]
   ): Promise<string> {
     const ai = this.getAI();
     
-    // Construct parts: Text prompt first, then references
     const parts: any[] = [{ text: prompt }];
-
-    // Add Product References
-    productRefs.forEach((ref, index) => {
-      parts.push({
-        inlineData: { data: ref.data, mimeType: ref.mimeType }
-      });
-      parts.push({ text: `Product view reference ${index + 1}: ${ref.description}` });
-    });
-
-    // Add Environment Reference
-    if (envRef) {
-      parts.push({
-        inlineData: { data: envRef.data, mimeType: envRef.mimeType }
-      });
-      parts.push({ text: "Environment reference: Use this photo to guide the style, lighting, and atmosphere of the scene." });
+    
+    if (images) {
+      for (const img of images) {
+        const base64 = img.url.split(',')[1];
+        if (base64) {
+          parts.push({
+            inlineData: {
+              data: base64,
+              mimeType: img.mimeType
+            }
+          });
+        }
+      }
     }
 
     const response = await ai.models.generateContent({
@@ -94,78 +140,4 @@ export class GeminiService {
     }
     return imageUrl;
   }
-
-  static async generateVideo(image: string, prompt: string): Promise<string> {
-    const ai = this.getAI();
-    let operation = await ai.models.generateVideos({
-      model: 'veo-3.1-fast-generate-preview',
-      prompt: prompt,
-      image: {
-        imageBytes: image.split(',')[1],
-        mimeType: 'image/png'
-      },
-      config: {
-        numberOfVideos: 1,
-        resolution: '720p',
-        aspectRatio: '16:9'
-      }
-    });
-
-    while (!operation.done) {
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      operation = await ai.operations.getVideosOperation({ operation: operation });
-    }
-
-    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-    const res = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
-  }
-}
-
-export function assembleFurniturePrompt(data: {
-  brandStyle: string;
-  dimensions?: { w: number; h: number; d: number };
-  productText?: string;
-  envText?: string;
-  lighting?: string;
-  hasProductRefs: boolean;
-  hasEnvRef: boolean;
-  models: any[];
-  view?: string;
-}): string {
-  let p = `Professional furniture catalog rendering. ${data.brandStyle}. `;
-  
-  if (data.dimensions) {
-    p += `Item dimensions: Width ${data.dimensions.w}cm, Height ${data.dimensions.h}cm, Depth ${data.dimensions.d}cm. Accurate proportions. `;
-  }
-
-  if (data.productText) {
-    p += `Description: ${data.productText}. `;
-  }
-
-  if (data.hasProductRefs) {
-    p += "Maintain strict visual consistency with the attached product reference images (materials, color, details). ";
-  }
-
-  if (data.lighting) {
-    p += `Lighting setup: ${data.lighting}. `;
-  }
-
-  if (data.envText || data.hasEnvRef) {
-    p += `Environment: ${data.envText || 'Match the attached environment reference scene'}. Reproduce lighting and atmospheric conditions precisely. `;
-  }
-
-  if (data.view) {
-    p += `Camera view: ${data.view}. `;
-  }
-
-  if (data.models.length > 0) {
-    data.models.forEach((m: any) => {
-      p += `Include a ${m.gender} human model performing: ${m.interaction}. `;
-    });
-  }
-
-  p += "High-end interior photography, architectural lighting, 8k resolution, photorealistic.";
-  return p;
 }

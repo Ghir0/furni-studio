@@ -9,6 +9,14 @@ export const VIEW_TYPES = [
 export const ASPECT_RATIOS = ["1:1", "3:4", "4:3", "9:16", "16:9", "21:9"];
 export const IMAGE_SIZES = ["1K", "2K", "4K"];
 
+export const LIGHTING_OPTIONS: { label: string; value: string }[] = [
+  { label: 'Soft (Morbida)', value: 'Soft' },
+  { label: 'Studio (Professionale)', value: 'Studio' },
+  { label: 'Natural (Luce Naturale)', value: 'Natural' },
+  { label: 'Dramatic (Contrastata)', value: 'Dramatic' },
+  { label: 'Custom (Manuale)', value: 'Custom' },
+];
+
 export const Icons = {
   Brand: () => <i className="fas fa-fingerprint"></i>,
   Generator: () => <i className="fas fa-magic"></i>,
@@ -22,4 +30,7 @@ export const Icons = {
   Refresh: () => <i className="fas fa-sync"></i>,
   Model: () => <i className="fas fa-user-friends"></i>,
   Layers: () => <i className="fas fa-layer-group"></i>,
+  Camera: () => <i className="fas fa-camera"></i>,
+  Light: () => <i className="fas fa-lightbulb"></i>,
+  Box: () => <i className="fas fa-box"></i>,
 };

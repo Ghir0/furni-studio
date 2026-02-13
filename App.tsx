@@ -39,7 +39,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveAsset = async (asset: Asset) => {
-    // Prevent duplicate entries in the same session
+    // Prevent duplicate entries in the same session by URL
     if (gallery.some(a => a.url === asset.url)) return;
     
     setGallery(prev => [asset, ...prev]);
@@ -75,23 +75,25 @@ const App: React.FC = () => {
       <main className="flex-1 flex flex-col p-6 lg:p-10 min-w-0 relative">
         {/* API Check Overlay */}
         {!process.env.API_KEY && (
-          <div className="absolute inset-0 z-[200] bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center space-y-6">
-             <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 border border-red-500/20">
-               <i className="fas fa-key text-3xl"></i>
+          <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-2xl flex flex-col items-center justify-center p-8 text-center space-y-8">
+             <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 border border-red-500/20 shadow-[0_0_50px_rgba(239,68,68,0.1)]">
+               <i className="fas fa-key text-4xl"></i>
              </div>
-             <div>
-               <h2 className="text-2xl font-bold">API Access Required</h2>
-               <p className="text-slate-400 max-w-md mx-auto mt-2 text-sm leading-relaxed">
-                 To use Furniture Studio v2.4, please ensure a valid Google Gemini API Key is configured in your environment.
+             <div className="space-y-3">
+               <h2 className="text-3xl font-bold tracking-tight">Accesso API Necessario</h2>
+               <p className="text-slate-400 max-w-md mx-auto text-sm leading-relaxed">
+                 Per utilizzare Furniture Studio v2.4, configura una chiave API Google Gemini valida nell'ambiente di esecuzione.
                </p>
              </div>
-             <a 
-               href="https://ai.google.dev/gemini-api/docs/billing" 
-               target="_blank" 
-               className="text-blue-500 hover:text-blue-400 underline text-xs font-bold uppercase tracking-widest"
-             >
-               Gemini API Billing Docs
-             </a>
+             <div className="flex flex-col gap-3">
+               <a 
+                 href="https://ai.google.dev/gemini-api/docs/billing" 
+                 target="_blank" 
+                 className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border border-slate-700"
+               >
+                 Documentazione Billing Gemini
+               </a>
+             </div>
           </div>
         )}
 
@@ -122,7 +124,7 @@ const App: React.FC = () => {
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
+          width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
           background: transparent;
@@ -133,6 +135,11 @@ const App: React.FC = () => {
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: #475569;
+        }
+        @keyframes float {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+          100% { transform: translateY(0px); }
         }
       `}</style>
     </div>

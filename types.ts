@@ -15,7 +15,15 @@ export interface Asset {
     prompt?: string;
     dimensions?: { w: number; h: number; d: number };
     brandStyle?: string;
+    lighting?: string;
   };
+}
+
+export interface ProductReference {
+  id: string;
+  url: string;
+  description: string;
+  mimeType: string;
 }
 
 export interface HumanModel {
@@ -36,3 +44,5 @@ export interface WorkspaceState {
   path: string;
   status: 'disconnected' | 'connected';
 }
+
+export type LightingType = 'Soft' | 'Studio' | 'Natural' | 'Dramatic' | 'Custom';
