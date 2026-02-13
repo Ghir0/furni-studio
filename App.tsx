@@ -53,30 +53,35 @@ const App: React.FC = () => {
   };
 
   const handleSaveAsset = async (asset: Asset) => {
-    // Prevent duplicate entries in the same session by URL
-    if (gallery.some(a => a.url === asset.url)) {
-      alert("Asset già presente in galleria.");
+    // Prevent duplicate entries by ID
+    if (gallery.some(a => a.id === asset.id)) {
       return;
     }
     
     setGallery(prev => [asset, ...prev]);
     
+    // Auto-save to Local Workspace if connected
     if (workspace.handle && workspace.status === 'connected') {
       try {
         const response = await fetch(asset.url);
         const blob = await response.blob();
-        const success = await FileSystemService.saveFile(workspace.handle, 'Renders', `${asset.id}.png`, blob);
+        
+        // Determina la sottocartella in base al tipo di operazione
+        const folder = asset.id.includes('cons') ? 'Consistency-Bundle' : 'Renders';
+        const fileName = `${asset.id}.png`;
+        
+        const success = await FileSystemService.saveFile(workspace.handle, folder, fileName, blob);
         if (success) {
-          console.log(`Saved ${asset.id}.png to workspace`);
+          console.log(`Saved ${fileName} to local workspace folder: ${folder}`);
         }
       } catch (e) {
-        console.error("Workspace save failed", e);
+        console.error("Workspace auto-save failed", e);
       }
     }
   };
 
   const handleDeleteAsset = (id: string) => {
-    if (confirm("Sei sicuro di voler eliminare questo asset dalla galleria condivisa?")) {
+    if (confirm("Eliminare l'asset dalla galleria condivisa?")) {
       setGallery(prev => prev.filter(a => a.id !== id));
     }
   };
@@ -110,7 +115,7 @@ const App: React.FC = () => {
              <div className="space-y-4">
                <h2 className="text-4xl font-extrabold tracking-tight">Accesso Riservato</h2>
                <p className="text-slate-400 max-w-md mx-auto text-sm leading-relaxed font-medium">
-                 Furniture Studio v2.4 richiede una chiave API Google Gemini configurata nelle variabili d'ambiente per abilitare il motore di generazione e sviluppo.
+                 Furniture Studio v2.4 richiede una chiave API Google Gemini configurata per abilitare il motore di generazione e analisi.
                </p>
              </div>
              <div className="flex flex-col gap-4 w-full max-w-xs">
@@ -152,23 +157,11 @@ const App: React.FC = () => {
       </main>
 
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #1e293b;
-          border-radius: 20px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #334155;
-        }
-        * {
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 20px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #334155; }
+        * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
       `}</style>
     </div>
   );

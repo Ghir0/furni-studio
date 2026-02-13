@@ -7,6 +7,9 @@ export class GeminiService {
     return new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   }
 
+  /**
+   * Genera il DNA del Brand
+   */
   static async generateBrandContext(name: string, sector: string, market: string, description: string): Promise<string> {
     const ai = this.getAI();
     const response = await ai.models.generateContent({
@@ -23,37 +26,56 @@ export class GeminiService {
   }
 
   /**
-   * ADVANCED PROMPT ASSEMBLY LOGIC
+   * ANALISI SORGENTE: Chiede a Gemini di descrivere l'immagine per bloccare la coerenza
+   */
+  static async describeImage(imageUrl: string): Promise<string> {
+    const ai = this.getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
+        parts: [
+          { inlineData: { data: imageUrl.split(',')[1], mimeType: 'image/png' } },
+          { text: "Describe this piece of furniture and its environment in extreme technical detail. Focus on: exact materials, textures (matte/glossy), leg shape, fabric weave, hardware details, and lighting conditions. This description will be used to ensure 100% consistency in future renders. Be concise but hyper-specific." }
+        ]
+      }
+    });
+    return response.text || "";
+  }
+
+  /**
+   * ADVANCED PROMPT ASSEMBLY LOGIC v2.4
    */
   static assembleFurniturePrompt(data: {
     brandStyle: string;
     dimensions?: { w: number; h: number; d: number };
     productRefs: ProductReference[];
     productDesc?: string;
+    visualAnalysis?: string; // Descrizione tecnica ottenuta dall'analisi
     envRef?: { url: string; description: string };
     lighting?: { type: string; custom?: string };
     models: HumanModel[];
     view?: string;
-  }):string {
+  }): string {
     let p = `[CONTEXT BRAND]: ${data.brandStyle}. `;
     
+    if (data.visualAnalysis) {
+      p += `[VISUAL DNA ANCHOR]: ${data.visualAnalysis}. `;
+    }
+
     if (data.dimensions) {
-      p += `[TECHNICAL SPECS]: Precise physical dimensions - Width ${data.dimensions.w}cm, Height ${data.dimensions.h}cm, Depth ${data.dimensions.d}cm. Ensure the furniture respects these proportions within the space. `;
+      p += `[TECHNICAL SPECS]: Precise physical dimensions - Width ${data.dimensions.w}cm, Height ${data.dimensions.h}cm, Depth ${data.dimensions.d}cm. Ensure the furniture respects these proportions. `;
     }
 
     if (data.productDesc) {
       p += `[DESIGN FOCUS]: ${data.productDesc}. `;
     }
 
-    if (data.productRefs.length > 0) {
-      p += `[VISUAL ANCHORS]: Maintain absolute consistency with the uploaded images regarding silhouette, finishes, and materials. `;
-      data.productRefs.forEach((ref, i) => {
-        p += `Reference ${i+1}: ${ref.description}. `;
-      });
+    if (data.productRefs.length > 0 && !data.visualAnalysis) {
+      p += `[VISUAL ANCHORS]: Maintain absolute consistency with the silhouettes and finishes in the uploaded images. `;
     }
 
     if (data.envRef) {
-      p += `[ENVIRONMENTAL INTEGRATION]: Place the furniture within the reference environment. ${data.envRef.description || 'Seamless integration into the provided scenario'}. `;
+      p += `[ENVIRONMENTAL INTEGRATION]: ${data.envRef.description || 'Seamless integration into the provided scenario'}. `;
     }
 
     if (data.lighting) {
@@ -68,36 +90,32 @@ export class GeminiService {
     if (data.models.length > 0) {
       p += `[LIFESTYLE ELEMENTS]: `;
       data.models.forEach((m) => {
-        p += `Human presence: ${m.gender === 'female' ? 'Female Model' : 'Male Model'} involved in: ${m.interaction}. The model must not obscure the key details of the furniture. `;
+        p += `Human presence: ${m.gender === 'female' ? 'Female Model' : 'Male Model'} involved in: ${m.interaction}. Do not obscure furniture details. `;
       });
     }
 
-    p += "Output: Professional design catalog photography, controlled depth of field, hyper-detailed material textures, 8k resolution.";
+    p += "Output: Professional design catalog photography, 8k resolution, hyper-detailed textures.";
     return p;
   }
 
   /**
-   * SPECIFIC CONSISTENCY PROMPT
-   * Ensures the product and scene remain identical, only changing camera angle.
+   * CONSISTENCY PROMPT con Visual Analysis
    */
-  static assembleConsistencyPrompt(sourceView: string, targetView: string, brandStyle: string): string {
-    return `[PRODUCT CONSISTENCY MANDATE]: You are generating an alternative camera angle of the EXACT same furniture piece and the EXACT same room shown in the reference image.
-    - DO NOT change materials, colors, textures, or shapes of the furniture.
-    - DO NOT change the lighting or architectural details of the background.
-    - ACTION: Change the camera viewpoint to a "${targetView}" shot.
-    - Brand aesthetic to maintain: ${brandStyle}.
-    - Ensure perfect visual continuity. This is for a professional furniture catalog.`;
+  static assembleConsistencyPrompt(targetView: string, brandStyle: string, visualAnalysis: string): string {
+    return `[PRODUCT CONSISTENCY MANDATE]: You are generating an alternative camera angle of the EXACT same furniture piece.
+    [TECHNICAL DESCRIPTION]: ${visualAnalysis}.
+    [BRAND STYLE]: ${brandStyle}.
+    [ACTION]: Change the camera viewpoint to a "${targetView}" shot. 
+    - MANDATORY: Keep every single texture, material, and geometric detail identical. 
+    - MANDATORY: Keep the lighting and background architectural details consistent.`;
   }
 
   /**
-   * RESIZE CONSISTENCY PROMPT
+   * RESIZE PROMPT
    */
   static assembleResizePrompt(brandStyle: string, ratio: string): string {
-    return `[ASPECT RATIO ADAPTATION]: Re-render the exact same scene, furniture, and environment from the reference image, but adapt it to the new aspect ratio: ${ratio}.
-    - MANDATORY: The furniture piece must remain identical in design, texture, and materials.
-    - MANDATORY: The room environment and lighting must remain identical.
-    - ACTION: Adjust the framing or outpaint the scene to fit ${ratio} perfectly without stretching or distortion.
-    - Context: ${brandStyle}.`;
+    return `[ASPECT RATIO ADAPTATION]: Re-render the exact same scene but adapt it to ratio: ${ratio}. 
+    MANDATORY: Identical furniture and environment. Context: ${brandStyle}.`;
   }
 
   static async generateImage(
@@ -106,19 +124,13 @@ export class GeminiService {
     images?: { url: string; mimeType: string }[]
   ): Promise<string> {
     const ai = this.getAI();
-    
     const parts: any[] = [{ text: prompt }];
     
     if (images) {
       for (const img of images) {
         const base64 = img.url.split(',')[1];
         if (base64) {
-          parts.push({
-            inlineData: {
-              data: base64,
-              mimeType: img.mimeType
-            }
-          });
+          parts.push({ inlineData: { data: base64, mimeType: img.mimeType } });
         }
       }
     }
@@ -128,10 +140,7 @@ export class GeminiService {
       contents: { parts },
       config: {
         // @ts-ignore
-        imageConfig: {
-          aspectRatio: config.aspectRatio,
-          imageSize: config.imageSize
-        }
+        imageConfig: { aspectRatio: config.aspectRatio, imageSize: config.imageSize }
       }
     });
 
@@ -157,9 +166,7 @@ export class GeminiService {
       },
       config: config ? {
         // @ts-ignore
-        imageConfig: {
-          aspectRatio: config.aspectRatio
-        }
+        imageConfig: { aspectRatio: config.aspectRatio }
       } : undefined
     });
 
