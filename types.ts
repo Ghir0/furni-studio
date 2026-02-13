@@ -16,6 +16,7 @@ export interface Asset {
     dimensions?: { w: number; h: number; d: number };
     brandStyle?: string;
     lighting?: string;
+    viewName?: string;
   };
 }
 

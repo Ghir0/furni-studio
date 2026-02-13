@@ -31,7 +31,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ brand, onSaveAsset }) =
 
   useEffect(() => {
     const p = GeminiService.assembleFurniturePrompt({
-      brandStyle: brand.systemPrompt,
+      brandStyle: brand.systemPrompt || "[Awaiting Brand Intelligence...]",
       dimensions: dims,
       productRefs: productRefs,
       productDesc: productDesc,
@@ -91,7 +91,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ brand, onSaveAsset }) =
       
       setResult(img);
     } catch (e) {
-      alert("Failed to generate image");
+      alert("Failed to generate image. Ensure API Key is valid and images are correctly loaded.");
     } finally {
       setLoading(false);
     }
@@ -156,7 +156,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ brand, onSaveAsset }) =
                   </div>
                   <input 
                     className="w-full bg-transparent border-b border-slate-800 focus:border-blue-600 text-[11px] py-1 outline-none text-slate-300"
-                    placeholder="Descrivi questa vista (es. vista frontale tessitura)..."
+                    placeholder="Descrivi questa vista..."
                     value={ref.description}
                     onChange={(e) => {
                       const newRefs = [...productRefs];
@@ -171,7 +171,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ brand, onSaveAsset }) =
               rows={2}
               value={productDesc}
               onChange={(e) => setProductDesc(e.target.value)}
-              placeholder="Descrizione prodotto generale (es. divano modulare in velluto verde bosco)..."
+              placeholder="Descrizione prodotto generale (es. poltrona in nabuk cognac)..."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs focus:ring-1 focus:ring-blue-600 resize-none"
             />
           </div>
@@ -209,7 +209,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ brand, onSaveAsset }) =
               rows={2}
               value={envDesc}
               onChange={(e) => setEnvDesc(e.target.value)}
-              placeholder="Dettagli ambiente (es. attico moderno, luce pomeridiana)..."
+              placeholder="Dettagli ambiente (es. showroom milanese)..."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs focus:ring-1 focus:ring-blue-600 resize-none"
             />
 
@@ -275,11 +275,9 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ brand, onSaveAsset }) =
 
       {/* Preview Area */}
       <div className="lg:col-span-8 flex flex-col bg-slate-950 border border-slate-800 rounded-[2.5rem] overflow-hidden relative group shadow-2xl">
-        <div className="flex-1 flex items-center justify-center p-8 bg-[radial-gradient(circle_at_center,_#1e293b_0%,_#0f172a_100%)]">
+        <div className="flex-1 flex items-center justify-center p-8 bg-[radial-gradient(circle_at_center,_#1e293b_0%,_#0f172a_100%)] overflow-hidden">
           {result ? (
-            <div className="relative w-full h-full flex items-center justify-center">
-               <img src={result} alt="Generation result" className="max-w-full max-h-full rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] object-contain animate-in zoom-in-95 duration-700" />
-            </div>
+            <img src={result} alt="Generation result" className="max-w-full max-h-full rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] object-contain animate-in zoom-in-95 duration-700" />
           ) : (
             <div className="text-slate-600 text-center space-y-6 max-w-sm">
               <div className="w-24 h-24 bg-slate-900 rounded-[2rem] flex items-center justify-center mx-auto border border-slate-800 shadow-inner">
@@ -291,46 +289,43 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ brand, onSaveAsset }) =
               </div>
             </div>
           )}
+
+          {/* Persistent Loading state over the area */}
+          {loading && (
+            <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md z-40 flex flex-col items-center justify-center transition-all">
+              <div className="relative mb-6">
+                <div className="w-20 h-20 border-4 border-blue-600/20 rounded-full"></div>
+                <div className="w-20 h-20 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+              </div>
+              <p className="text-blue-500 font-bold uppercase tracking-[0.2em] text-sm animate-pulse">Processing CGI Engine...</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-2">Gemini 3 Pro Vision • Neural Render</p>
+            </div>
+          )}
         </div>
 
-        {result && (
+        {result && !loading && (
           <div className="absolute top-6 right-6 flex gap-3 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 duration-300">
             <button 
               onClick={() => onSaveAsset({
-                id: Math.random().toString(36).substr(2, 9),
+                id: `gen-${Date.now()}`,
                 url: result,
                 type: 'render',
                 timestamp: Date.now(),
                 metadata: { brandStyle: brand.name, prompt: currentPrompt, dimensions: dims }
               })}
               className="bg-white/10 hover:bg-blue-600 backdrop-blur-xl p-4 rounded-2xl border border-white/10 transition-all shadow-xl"
-              title="Salva in Galleria Condivisa"
+              title="Salva in Galleria"
             >
               <i className="fas fa-save text-lg"></i>
             </button>
             <a 
               href={result} 
-              download={`render-${Date.now()}.png`}
+              download={`furni-studio-${Date.now()}.png`}
               className="bg-white/10 hover:bg-green-600 backdrop-blur-xl p-4 rounded-2xl border border-white/10 transition-all shadow-xl flex items-center justify-center"
               title="Download Render"
             >
               <i className="fas fa-download text-lg"></i>
             </a>
-          </div>
-        )}
-
-        {loading && (
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-50">
-            <div className="flex flex-col items-center gap-6">
-              <div className="relative">
-                <div className="w-20 h-20 border-4 border-blue-600/20 rounded-full"></div>
-                <div className="w-20 h-20 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
-              </div>
-              <div className="text-center space-y-1">
-                <p className="text-blue-500 font-bold uppercase tracking-[0.2em] text-sm animate-pulse">Sviluppo Immagine...</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest">Utilizzando Gemini 3 Pro Vision</p>
-              </div>
-            </div>
           </div>
         )}
 
