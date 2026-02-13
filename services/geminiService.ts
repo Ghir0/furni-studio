@@ -24,7 +24,6 @@ export class GeminiService {
 
   /**
    * ADVANCED PROMPT ASSEMBLY LOGIC
-   * Concatenates Brand Context + Dimensions + Product/Env References + Models + View
    */
   static assembleFurniturePrompt(data: {
     brandStyle: string;
@@ -77,6 +76,30 @@ export class GeminiService {
     return p;
   }
 
+  /**
+   * SPECIFIC CONSISTENCY PROMPT
+   * Ensures the product and scene remain identical, only changing camera angle.
+   */
+  static assembleConsistencyPrompt(sourceView: string, targetView: string, brandStyle: string): string {
+    return `[PRODUCT CONSISTENCY MANDATE]: You are generating an alternative camera angle of the EXACT same furniture piece and the EXACT same room shown in the reference image.
+    - DO NOT change materials, colors, textures, or shapes of the furniture.
+    - DO NOT change the lighting or architectural details of the background.
+    - ACTION: Change the camera viewpoint to a "${targetView}" shot.
+    - Brand aesthetic to maintain: ${brandStyle}.
+    - Ensure perfect visual continuity. This is for a professional furniture catalog.`;
+  }
+
+  /**
+   * RESIZE CONSISTENCY PROMPT
+   */
+  static assembleResizePrompt(brandStyle: string, ratio: string): string {
+    return `[ASPECT RATIO ADAPTATION]: Re-render the exact same scene, furniture, and environment from the reference image, but adapt it to the new aspect ratio: ${ratio}.
+    - MANDATORY: The furniture piece must remain identical in design, texture, and materials.
+    - MANDATORY: The room environment and lighting must remain identical.
+    - ACTION: Adjust the framing or outpaint the scene to fit ${ratio} perfectly without stretching or distortion.
+    - Context: ${brandStyle}.`;
+  }
+
   static async generateImage(
     prompt: string, 
     config: { aspectRatio: string; imageSize: string },
@@ -122,7 +145,7 @@ export class GeminiService {
     return imageUrl;
   }
 
-  static async editImage(baseImage: string, editPrompt: string): Promise<string> {
+  static async editImage(baseImage: string, editPrompt: string, config?: { aspectRatio: string }): Promise<string> {
     const ai = this.getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -131,7 +154,13 @@ export class GeminiService {
           { inlineData: { data: baseImage.split(',')[1], mimeType: 'image/png' } },
           { text: editPrompt }
         ]
-      }
+      },
+      config: config ? {
+        // @ts-ignore
+        imageConfig: {
+          aspectRatio: config.aspectRatio
+        }
+      } : undefined
     });
 
     let imageUrl = '';
