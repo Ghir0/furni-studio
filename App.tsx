@@ -11,24 +11,38 @@ import { FileSystemService } from './services/fileSystemService';
 const App: React.FC = () => {
   // Persistence states
   const [activeTab, setActiveTab] = useState<AppTab>(AppTab.BRAND);
+  
   const [brand, setBrand] = useState<BrandContext>(() => {
-    const saved = localStorage.getItem('furni_brand');
-    return saved ? JSON.parse(saved) : { name: '', aesthetic: '', systemPrompt: '' };
+    const saved = localStorage.getItem('furni_brand_v2.4');
+    return saved ? JSON.parse(saved) : { 
+      name: '', 
+      sector: '', 
+      market: '', 
+      aesthetic: '', 
+      systemPrompt: '' 
+    };
   });
+  
   const [gallery, setGallery] = useState<Asset[]>(() => {
-    const saved = localStorage.getItem('furni_gallery');
+    const saved = localStorage.getItem('furni_gallery_v2.4');
     return saved ? JSON.parse(saved) : [];
   });
-  const [workspace, setWorkspace] = useState<WorkspaceState>({ handle: null, path: '', status: 'disconnected' });
+  
+  const [workspace, setWorkspace] = useState<WorkspaceState>({ 
+    handle: null, 
+    path: '', 
+    status: 'disconnected' 
+  });
+  
   const [selectedForDev, setSelectedForDev] = useState<Asset | undefined>(undefined);
 
   // Sync with LocalStorage
   useEffect(() => {
-    localStorage.setItem('furni_brand', JSON.stringify(brand));
+    localStorage.setItem('furni_brand_v2.4', JSON.stringify(brand));
   }, [brand]);
 
   useEffect(() => {
-    localStorage.setItem('furni_gallery', JSON.stringify(gallery));
+    localStorage.setItem('furni_gallery_v2.4', JSON.stringify(gallery));
   }, [gallery]);
 
   const handleConnectWorkspace = async () => {
@@ -40,14 +54,21 @@ const App: React.FC = () => {
 
   const handleSaveAsset = async (asset: Asset) => {
     // Prevent duplicate entries in the same session by URL
-    if (gallery.some(a => a.url === asset.url)) return;
+    if (gallery.some(a => a.url === asset.url)) {
+      alert("Asset già presente in galleria.");
+      return;
+    }
     
     setGallery(prev => [asset, ...prev]);
+    
     if (workspace.handle && workspace.status === 'connected') {
       try {
         const response = await fetch(asset.url);
         const blob = await response.blob();
-        await FileSystemService.saveFile(workspace.handle, 'Renders', `${asset.id}.png`, blob);
+        const success = await FileSystemService.saveFile(workspace.handle, 'Renders', `${asset.id}.png`, blob);
+        if (success) {
+          console.log(`Saved ${asset.id}.png to workspace`);
+        }
       } catch (e) {
         console.error("Workspace save failed", e);
       }
@@ -55,7 +76,9 @@ const App: React.FC = () => {
   };
 
   const handleDeleteAsset = (id: string) => {
-    setGallery(prev => prev.filter(a => a.id !== id));
+    if (confirm("Sei sicuro di voler eliminare questo asset dalla galleria condivisa?")) {
+      setGallery(prev => prev.filter(a => a.id !== id));
+    }
   };
 
   const handleAssetSelectForDev = (asset: Asset) => {
@@ -75,23 +98,29 @@ const App: React.FC = () => {
       <main className="flex-1 flex flex-col p-6 lg:p-10 min-w-0 relative">
         {/* API Check Overlay */}
         {!process.env.API_KEY && (
-          <div className="absolute inset-0 z-[200] bg-slate-950/95 backdrop-blur-2xl flex flex-col items-center justify-center p-8 text-center space-y-8">
-             <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 border border-red-500/20 shadow-[0_0_50px_rgba(239,68,68,0.1)]">
-               <i className="fas fa-key text-4xl"></i>
+          <div className="absolute inset-0 z-[200] bg-slate-950/98 backdrop-blur-3xl flex flex-col items-center justify-center p-8 text-center space-y-10">
+             <div className="relative">
+                <div className="w-32 h-32 bg-red-500/10 rounded-[3rem] flex items-center justify-center text-red-500 border border-red-500/20 shadow-[0_0_80px_rgba(239,68,68,0.15)] animate-pulse">
+                  <i className="fas fa-lock text-5xl"></i>
+                </div>
+                <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center shadow-xl">
+                   <i className="fas fa-key text-red-400 text-sm"></i>
+                </div>
              </div>
-             <div className="space-y-3">
-               <h2 className="text-3xl font-bold tracking-tight">Accesso API Necessario</h2>
-               <p className="text-slate-400 max-w-md mx-auto text-sm leading-relaxed">
-                 Per utilizzare Furniture Studio v2.4, configura una chiave API Google Gemini valida nell'ambiente di esecuzione.
+             <div className="space-y-4">
+               <h2 className="text-4xl font-extrabold tracking-tight">Accesso Riservato</h2>
+               <p className="text-slate-400 max-w-md mx-auto text-sm leading-relaxed font-medium">
+                 Furniture Studio v2.4 richiede una chiave API Google Gemini configurata nelle variabili d'ambiente per abilitare il motore di generazione e sviluppo.
                </p>
              </div>
-             <div className="flex flex-col gap-3">
+             <div className="flex flex-col gap-4 w-full max-w-xs">
                <a 
                  href="https://ai.google.dev/gemini-api/docs/billing" 
                  target="_blank" 
-                 className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border border-slate-700"
+                 className="bg-white text-black hover:bg-slate-200 px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-[0_10px_30px_rgba(255,255,255,0.1)] flex items-center justify-center gap-3"
                >
-                 Documentazione Billing Gemini
+                 <span>Attiva Fatturazione Gemini</span>
+                 <i className="fas fa-external-link-alt"></i>
                </a>
              </div>
           </div>
@@ -124,22 +153,21 @@ const App: React.FC = () => {
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
+          width: 5px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #334155;
-          border-radius: 10px;
+          background: #1e293b;
+          border-radius: 20px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #475569;
+          background: #334155;
         }
-        @keyframes float {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-          100% { transform: translateY(0px); }
+        * {
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
         }
       `}</style>
     </div>

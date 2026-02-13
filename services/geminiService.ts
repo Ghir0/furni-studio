@@ -7,21 +7,24 @@ export class GeminiService {
     return new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   }
 
-  static async generateBrandContext(brandName: string, description: string): Promise<string> {
+  static async generateBrandContext(name: string, sector: string, market: string, description: string): Promise<string> {
     const ai = this.getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate a detailed architectural and furniture design system prompt for the brand "${brandName}". 
-      Description: ${description}. 
-      The prompt should define color palettes, materials (e.g., walnut, brushed steel), lighting style, and overall aesthetic "vibe". 
-      Keep it concise but highly descriptive for an AI image generator.`
+      contents: `Analyze this company data and generate a refined, technical SYSTEM_PROMPT that defines the brand's visual and communicative DNA for future AI generations.
+        Brand: ${name}
+        Sector: ${sector}
+        Market: ${market}
+        Aesthetic Description: ${description}
+        
+        Return only the optimized system prompt, focused on materials, lighting, architectural style, and the "vibe" of the furniture design.`
     });
     return response.text || "";
   }
 
   /**
    * ADVANCED PROMPT ASSEMBLY LOGIC
-   * Concatenates Brand Context + Dimensions + References + Models + View
+   * Concatenates Brand Context + Dimensions + Product/Env References + Models + View
    */
   static assembleFurniturePrompt(data: {
     brandStyle: string;
@@ -32,45 +35,45 @@ export class GeminiService {
     lighting?: { type: string; custom?: string };
     models: HumanModel[];
     view?: string;
-  }): string {
-    let p = `[ESTETICA BRAND]: ${data.brandStyle}. `;
+  }):string {
+    let p = `[CONTEXT BRAND]: ${data.brandStyle}. `;
     
     if (data.dimensions) {
-      p += `[DIMENSIONI]: Larghezza ${data.dimensions.w}cm, Altezza ${data.dimensions.h}cm, Profondità ${data.dimensions.d}cm. Mantieni proporzioni fotorealistiche. `;
+      p += `[TECHNICAL SPECS]: Precise physical dimensions - Width ${data.dimensions.w}cm, Height ${data.dimensions.h}cm, Depth ${data.dimensions.d}cm. Ensure the furniture respects these proportions within the space. `;
     }
 
     if (data.productDesc) {
-      p += `[DESCRIZIONE PRODOTTO]: ${data.productDesc}. `;
+      p += `[DESIGN FOCUS]: ${data.productDesc}. `;
     }
 
     if (data.productRefs.length > 0) {
-      p += `[REFERENCE VISIVE PRODOTTO]: Utilizza le immagini fornite come riferimento primario per design, materiali e finiture. `;
+      p += `[VISUAL ANCHORS]: Maintain absolute consistency with the uploaded images regarding silhouette, finishes, and materials. `;
       data.productRefs.forEach((ref, i) => {
-        p += `Immagine ${i+1}: ${ref.description}. `;
+        p += `Reference ${i+1}: ${ref.description}. `;
       });
     }
 
     if (data.envRef) {
-      p += `[AMBIENTE]: Usa l'immagine di riferimento ambientale fornita. ${data.envRef.description || 'Ambiente integrato perfettamente'}. `;
+      p += `[ENVIRONMENTAL INTEGRATION]: Place the furniture within the reference environment. ${data.envRef.description || 'Seamless integration into the provided scenario'}. `;
     }
 
     if (data.lighting) {
       const lightDesc = data.lighting.type === 'Custom' ? data.lighting.custom : data.lighting.type;
-      p += `[ILLUMINAZIONE]: Setup ${lightDesc}. Resa High-end catalog. `;
+      p += `[LIGHTING ENGINE]: Lighting setup ${lightDesc}. Photorealistic rendering with high dynamic range. `;
     }
 
     if (data.view) {
-      p += `[INQUADRATURA]: Vista ${data.view}. `;
+      p += `[CINEMATOGRAPHY]: Framing/Shot ${data.view}. `;
     }
 
     if (data.models.length > 0) {
-      p += `[MODELLI UMANI]: `;
+      p += `[LIFESTYLE ELEMENTS]: `;
       data.models.forEach((m) => {
-        p += `Un modello ${m.gender === 'female' ? 'Donna' : 'Uomo'} impegnato in: ${m.interaction}. `;
+        p += `Human presence: ${m.gender === 'female' ? 'Female Model' : 'Male Model'} involved in: ${m.interaction}. The model must not obscure the key details of the furniture. `;
       });
     }
 
-    p += "Rendering professionale per catalogo arredamento di lusso, 8k, Octane Render style, massima fedeltà materica.";
+    p += "Output: Professional design catalog photography, controlled depth of field, hyper-detailed material textures, 8k resolution.";
     return p;
   }
 

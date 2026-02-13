@@ -35,6 +35,8 @@ export interface HumanModel {
 
 export interface BrandContext {
   name: string;
+  sector: string;
+  market: string;
   aesthetic: string;
   systemPrompt: string;
 }
